@@ -367,6 +367,9 @@ public class JavaGenerator implements CodeGenerator
             indent,
             dimensionHeaderLen);
 
+        final String blockLenCast = PrimitiveType.UINT32 == blockLengthType ? "(int)" : "";
+        final String numInGroupCast = PrimitiveType.UINT32 == numInGroupType ? "(int)" : "";
+
         sb.append("\n")
             .append(indent).append("    public void wrap(final ").append(readOnlyBuffer).append(" buffer)\n")
             .append(indent).append("    {\n")
@@ -377,8 +380,8 @@ public class JavaGenerator implements CodeGenerator
             .append(indent).append("        index = 0;\n")
             .append(indent).append("        final int limit = parentMessage.limit();\n")
             .append(indent).append("        parentMessage.limit(limit + HEADER_SIZE);\n")
-            .append(indent).append("        blockLength = (int)").append(blockLengthGet).append(";\n")
-            .append(indent).append("        count = (int)").append(numInGroupGet).append(";\n")
+            .append(indent).append("        blockLength = ").append(blockLenCast).append(blockLengthGet).append(";\n")
+            .append(indent).append("        count = ").append(numInGroupCast).append(numInGroupGet).append(";\n")
             .append(indent).append("    }\n");
 
         sb.append("\n")
@@ -456,15 +459,17 @@ public class JavaGenerator implements CodeGenerator
 
         final PrimitiveType blockLengthType = blockLengthToken.encoding().primitiveType();
         final String blockLengthOffset = "limit + " + blockLengthToken.offset();
-        final String blockLengthValue = "(" + primitiveTypeName(blockLengthToken) + ")" + blockLength;
+        final String blockLengthValue = Integer.toString(blockLength);
         final String blockLengthPut = generatePut(
             blockLengthType, blockLengthOffset, blockLengthValue, byteOrderString(blockLengthToken.encoding()));
 
         final PrimitiveType numInGroupType = numInGroupToken.encoding().primitiveType();
+        final PrimitiveType newInGroupTypeCast = PrimitiveType.UINT32 == numInGroupType ?
+            PrimitiveType.INT32 : numInGroupType;
         final String numInGroupOffset = "limit + " + numInGroupToken.offset();
-        final String numInGroupValue = "(" + primitiveTypeName(numInGroupToken) + ")count";
+        final String numInGroupValue = "count";
         final String numInGroupPut = generatePut(
-            numInGroupType, numInGroupOffset, numInGroupValue, byteOrderString(numInGroupToken.encoding()));
+            newInGroupTypeCast, numInGroupOffset, numInGroupValue, byteOrderString(numInGroupToken.encoding()));
 
         new Formatter(sb).format("\n" +
             ind + "    public void wrap(final %2$s buffer, final int count)\n" +
@@ -507,7 +512,7 @@ public class JavaGenerator implements CodeGenerator
 
         final String countOffset = "initialLimit + " + numInGroupToken.offset();
         final String resetCountPut = generatePut(
-            numInGroupType, countOffset, numInGroupValue, byteOrderString(numInGroupToken.encoding()));
+            newInGroupTypeCast, countOffset, numInGroupValue, byteOrderString(numInGroupToken.encoding()));
 
         sb.append("\n")
             .append(ind).append("    public int resetCountToIndex()\n")
@@ -774,7 +779,7 @@ public class JavaGenerator implements CodeGenerator
                 .append(indent).append("    {\n")
                 .append(generateArrayFieldNotPresentCondition(token.version(), indent))
                 .append(indent).append("        final int limit = parentMessage.limit();\n")
-                .append(indent).append("        return (int)")
+                .append(indent).append("        return ").append(PrimitiveType.UINT32 == lengthType ? "(int)" : "")
                 .append(generateGet(lengthType, "limit", byteOrderStr)).append(";\n")
                 .append(indent).append("    }\n");
 
@@ -848,7 +853,7 @@ public class JavaGenerator implements CodeGenerator
             "%2$s" +
             indent + "        final int headerLength = %3$d;\n" +
             indent + "        final int limit = parentMessage.limit();\n" +
-            indent + "        final int dataLength = (int)%4$s;\n" +
+            indent + "        final int dataLength = %4$s%5$s;\n" +
             indent + "        final int dataOffset = limit + headerLength;\n" +
             indent + "        parentMessage.limit(dataOffset + dataLength);\n\n" +
             indent + "        return dataLength;\n" +
@@ -856,8 +861,8 @@ public class JavaGenerator implements CodeGenerator
             Generators.toUpperFirstChar(propertyName),
             generateStringNotPresentConditionForAppendable(token.version(), indent),
             sizeOfLengthField,
-            generateGet(lengthType, "limit", byteOrderStr),
-            byteOrderStr);
+            PrimitiveType.UINT32 == lengthType ? "(int)" : "",
+            generateGet(lengthType, "limit", byteOrderStr));
 
         generateVarDataTypedDecoder(
             sb,
@@ -889,7 +894,7 @@ public class JavaGenerator implements CodeGenerator
                 "%2$s" +
                 indent + "        final int headerLength = %3$d;\n" +
                 indent + "        final int limit = parentMessage.limit();\n" +
-                indent + "        final int dataLength = (int)%4$s;\n" +
+                indent + "        final int dataLength = %4$s%5$s;\n" +
                 indent + "        parentMessage.limit(limit + headerLength + dataLength);\n\n" +
                 indent + "        if (0 == dataLength)\n" +
                 indent + "        {\n" +
@@ -900,7 +905,7 @@ public class JavaGenerator implements CodeGenerator
                 indent + "        final String value;\n" +
                 indent + "        try\n" +
                 indent + "        {\n" +
-                indent + "            value = new String(tmp, \"%5$s\");\n" +
+                indent + "            value = new String(tmp, \"%6$s\");\n" +
                 indent + "        }\n" +
                 indent + "        catch (final java.io.UnsupportedEncodingException ex)\n" +
                 indent + "        {\n" +
@@ -911,6 +916,7 @@ public class JavaGenerator implements CodeGenerator
                 formatPropertyName(propertyName),
                 generateStringNotPresentCondition(token.version(), indent),
                 sizeOfLengthField,
+                PrimitiveType.UINT32 == lengthType ? "(int)" : "",
                 generateGet(lengthType, "limit", byteOrderStr),
                 characterEncoding);
 
@@ -922,7 +928,7 @@ public class JavaGenerator implements CodeGenerator
                     "%2$s" +
                     indent + "        final int headerLength = %3$d;\n" +
                     indent + "        final int limit = parentMessage.limit();\n" +
-                    indent + "        final int dataLength = (int)%4$s;\n" +
+                    indent + "        final int dataLength = %4$s%5$s;\n" +
                     indent + "        final int dataOffset = limit + headerLength;\n\n" +
                     indent + "        parentMessage.limit(dataOffset + dataLength);\n" +
                     indent + "        buffer.getStringWithoutLengthAscii(dataOffset, dataLength, appendable);\n\n" +
@@ -931,8 +937,8 @@ public class JavaGenerator implements CodeGenerator
                     Generators.toUpperFirstChar(propertyName),
                     generateStringNotPresentConditionForAppendable(token.version(), indent),
                     sizeOfLengthField,
-                    generateGet(lengthType, "limit", byteOrderStr),
-                    byteOrderStr);
+                    PrimitiveType.UINT32 == lengthType ? "(int)" : "",
+                    generateGet(lengthType, "limit", byteOrderStr));
             }
         }
     }
@@ -952,7 +958,7 @@ public class JavaGenerator implements CodeGenerator
             "%s" +
             indent + "        final int headerLength = %d;\n" +
             indent + "        final int limit = parentMessage.limit();\n" +
-            indent + "        final int dataLength = (int)%s;\n" +
+            indent + "        final int dataLength = %s%s;\n" +
             indent + "        parentMessage.limit(limit + headerLength + dataLength);\n" +
             indent + "        wrapBuffer.wrap(buffer, limit + headerLength, dataLength);\n" +
             indent + "    }\n",
@@ -960,6 +966,7 @@ public class JavaGenerator implements CodeGenerator
             readOnlyBuffer,
             generateVarWrapFieldNotPresentCondition(token.version(), indent),
             sizeOfLengthField,
+            PrimitiveType.UINT32 == lengthType ? "(int)" : "",
             generateGet(lengthType, "limit", byteOrderStr));
     }
 
@@ -1022,6 +1029,8 @@ public class JavaGenerator implements CodeGenerator
         final String className,
         final String indent)
     {
+        final PrimitiveType lengthPutType = PrimitiveType.UINT32 == lengthType ? PrimitiveType.INT32 : lengthType;
+
         if (characterEncoding.contains("ASCII"))
         {
             new Formatter(sb).format("\n" +
@@ -1043,7 +1052,7 @@ public class JavaGenerator implements CodeGenerator
                 formatPropertyName(propertyName),
                 maxLengthValue,
                 sizeOfLengthField,
-                generatePut(lengthType, "limit", "length", byteOrderStr));
+                generatePut(lengthPutType, "limit", "length", byteOrderStr));
 
             new Formatter(sb).format("\n" +
                 indent + "    public %1$s %2$s(final CharSequence value)\n" +
@@ -1069,7 +1078,7 @@ public class JavaGenerator implements CodeGenerator
                 formatPropertyName(propertyName),
                 maxLengthValue,
                 sizeOfLengthField,
-                generatePut(lengthType, "limit", "length", byteOrderStr));
+                generatePut(lengthPutType, "limit", "length", byteOrderStr));
         }
         else
         {
@@ -1103,7 +1112,7 @@ public class JavaGenerator implements CodeGenerator
                 characterEncoding,
                 maxLengthValue,
                 sizeOfLengthField,
-                generatePut(lengthType, "limit", "length", byteOrderStr));
+                generatePut(lengthPutType, "limit", "length", byteOrderStr));
         }
     }
 
@@ -1123,7 +1132,7 @@ public class JavaGenerator implements CodeGenerator
             "%s" +
             indent + "        final int headerLength = %d;\n" +
             indent + "        final int limit = parentMessage.limit();\n" +
-            indent + "        final int dataLength = (int)%s;\n" +
+            indent + "        final int dataLength = %s%s;\n" +
             indent + "        final int bytesCopied = Math.min(length, dataLength);\n" +
             indent + "        parentMessage.limit(limit + headerLength + dataLength);\n" +
             indent + "        buffer.getBytes(limit + headerLength, dst, dstOffset, bytesCopied);\n\n" +
@@ -1133,6 +1142,7 @@ public class JavaGenerator implements CodeGenerator
             exchangeType,
             generateArrayFieldNotPresentCondition(token.version(), indent),
             sizeOfLengthField,
+            PrimitiveType.UINT32 == lengthType ? "(int)" : "",
             generateGet(lengthType, "limit", byteOrderStr));
     }
 
@@ -1147,6 +1157,8 @@ public class JavaGenerator implements CodeGenerator
         final String byteOrderStr,
         final String indent)
     {
+        final PrimitiveType lengthPutType = PrimitiveType.UINT32 == lengthType ? PrimitiveType.INT32 : lengthType;
+
         new Formatter(sb).format("\n" +
             indent + "    public %1$s put%2$s(final %3$s src, final int srcOffset, final int length)\n" +
             indent + "    {\n" +
@@ -1166,7 +1178,7 @@ public class JavaGenerator implements CodeGenerator
             exchangeType,
             maxLengthValue,
             sizeOfLengthField,
-            generatePut(lengthType, "limit", "length", byteOrderStr));
+            generatePut(lengthPutType, "limit", "length", byteOrderStr));
     }
 
     private void generateBitSet(final List<Token> tokens) throws IOException

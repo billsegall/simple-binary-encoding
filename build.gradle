@@ -22,7 +22,7 @@ buildscript {
 plugins {
     id 'java-library'
     id 'idea'
-    id 'io.freefair.javadoc-links' version '4.1.6' apply false
+    id 'io.freefair.javadoc-links' version '5.1.0' apply false
     id 'com.github.johnrengelman.shadow' version '5.2.0' apply false
     id "com.github.ben-manes.versions" version "0.28.0"
 }
@@ -31,16 +31,16 @@ defaultTasks 'clean', 'build'
 
 def checkstyleVersion = '8.28'
 def hamcrestVersion = '2.2'
-def mockitoVersion = '3.3.0'
-def junitVersion = '5.6.0'
+def mockitoVersion = '3.3.3'
+def junitVersion = '5.6.2'
 def jmhVersion = '1.23'
-def agronaVersion = '1.4.0'
+def agronaVersion = '1.4.1'
 
 def sbeGroup = 'uk.co.real-logic'
 def sbeVersion = file('version.txt').text.trim()
 
 ext {
-    isReleaseVersion = !version.endsWith('-SNAPSHOT')
+    isReleaseVersion = !sbeVersion.endsWith('-SNAPSHOT')
     releasesRepoUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
     snapshotsRepoUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
 
@@ -194,7 +194,11 @@ project(':sbe-tool') {
     apply plugin: 'signing'
 
     dependencies {
-        api "org.agrona:agrona:${agronaVersion}"
+        api("org.agrona:agrona") {
+            version {
+                strictly(agronaVersion)
+            }
+        }
         testImplementation files('build/classes/java/generated')
         testImplementation "org.hamcrest:hamcrest:${hamcrestVersion}"
         testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
@@ -682,6 +686,6 @@ task testReport(type: TestReport) {
 }
 
 wrapper {
-    gradleVersion = '6.2.2'
+    gradleVersion = '6.4.1'
     distributionType = 'ALL'
 }

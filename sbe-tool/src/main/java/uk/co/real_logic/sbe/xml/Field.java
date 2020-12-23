@@ -23,7 +23,7 @@ import java.util.Map;
 import static uk.co.real_logic.sbe.xml.XmlSchemaParser.*;
 
 /**
- * Holder for Field (or Group or Data) information
+ * Representation for a field (or group or data) member from the SBE schema.
  */
 public class Field
 {
@@ -296,6 +296,9 @@ public class Field
         }
     }
 
+    /**
+     * Builder to make creation of {@link Field} easier.
+     */
     public static class Builder
     {
         private String name;

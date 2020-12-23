@@ -1,8 +1,9 @@
-/* Generated SBE (Simple Binary Encoding) message codec */
+/* Generated SBE (Simple Binary Encoding) message codec. */
 package uk.co.real_logic.sbe.ir.generated;
 
 import org.agrona.MutableDirectBuffer;
 import org.agrona.DirectBuffer;
+
 
 /**
  * Frame Header for start of encoding IR
@@ -18,11 +19,11 @@ public class FrameCodecDecoder
 
     private final FrameCodecDecoder parentMessage = this;
     private DirectBuffer buffer;
-    protected int initialOffset;
-    protected int offset;
-    protected int limit;
-    protected int actingBlockLength;
-    protected int actingVersion;
+    private int initialOffset;
+    private int offset;
+    private int limit;
+    int actingBlockLength;
+    int actingVersion;
 
     public int sbeBlockLength()
     {

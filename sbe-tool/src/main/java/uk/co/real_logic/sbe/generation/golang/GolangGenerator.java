@@ -33,11 +33,15 @@ import java.util.Scanner;
 import java.util.TreeSet;
 
 import static uk.co.real_logic.sbe.PrimitiveType.CHAR;
+import static uk.co.real_logic.sbe.generation.Generators.toUpperFirstChar;
 import static uk.co.real_logic.sbe.generation.golang.GolangUtil.*;
 import static uk.co.real_logic.sbe.ir.GenerationUtil.collectVarData;
 import static uk.co.real_logic.sbe.ir.GenerationUtil.collectGroups;
 import static uk.co.real_logic.sbe.ir.GenerationUtil.collectFields;
 
+/**
+ * Codec generator for the Go Lang programming language.
+ */
 @SuppressWarnings("MethodLength")
 public class GolangGenerator implements CodeGenerator
 {
@@ -1160,6 +1164,7 @@ public class GolangGenerator implements CodeGenerator
             "\t\tif cap(%1$c.%2$s) < int(%2$sLength) {\n" +
             "\t\t\t%1$s.%2$s = make([]%5$s, %2$sLength)\n" +
             "\t\t}\n" +
+            "\t\t%1$c.%2$s = %1$c.%2$s[:%2$sLength]\n" +
             "\t\tif err := _m.ReadBytes(_r, %1$c.%2$s); err != nil {\n" +
             "\t\t\treturn err\n" +
             "\t\t}\n" +
@@ -1267,6 +1272,7 @@ public class GolangGenerator implements CodeGenerator
             "\t\tif cap(%1$c.%2$s) < int(%2$sNumInGroup) {\n" +
             "\t\t\t%1$s.%2$s = make([]%3$s%2$s, %2$sNumInGroup)\n" +
             "\t\t}\n" +
+            "\t\t%1$c.%2$s = %1$c.%2$s[:%2$sNumInGroup]\n" +
             "\t\tfor i, _ := range %1$s.%2$s {\n" +
             "\t\t\tif err := %1$s.%2$s[i].Decode(_m, _r, actingVersion, uint(%4$sBlockLength)); err != nil {\n" +
             "\t\t\t\treturn err\n" +

@@ -31,9 +31,14 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import static uk.co.real_logic.sbe.generation.Generators.toLowerFirstChar;
+import static uk.co.real_logic.sbe.generation.Generators.toUpperFirstChar;
 import static uk.co.real_logic.sbe.generation.c.CUtil.*;
 import static uk.co.real_logic.sbe.ir.GenerationUtil.*;
 
+/**
+ * Codec generator for the C11 programming language.
+ */
 @SuppressWarnings("MethodLength")
 public class CGenerator implements CodeGenerator
 {
@@ -946,14 +951,20 @@ public class CGenerator implements CodeGenerator
 
         for (final Token token : tokens)
         {
+            final CharSequence constVal = generateLiteral(
+                token.encoding().primitiveType(), token.encoding().constValue().toString());
+
             sb.append(String.format(
                 "        case %s:\n" +
                 "             *out = %s_%s;\n" +
                 "             return true;\n",
-                token.encoding().constValue().toString(),
+                constVal,
                 enumName,
                 token.name()));
         }
+
+        final CharSequence constVal = generateLiteral(
+            encodingToken.encoding().primitiveType(), encodingToken.encoding().applicableNullValue().toString());
 
         sb.append(String.format(
             "        case %s:\n" +
@@ -964,7 +975,7 @@ public class CGenerator implements CodeGenerator
             "    errno = E103;\n" +
             "    return false;\n" +
             "}\n",
-            encodingToken.encoding().applicableNullValue().toString(),
+            constVal,
             enumName));
 
         return sb;
@@ -1954,7 +1965,7 @@ public class CGenerator implements CodeGenerator
             "    struct %11$s *const hdr)\n" +
             "{\n" +
             "    %11$s_wrap(\n" +
-            "        hdr, buffer + offset, 0, buffer_length, %11$s_sbe_schema_version());\n\n" +
+            "        hdr, buffer + offset, 0, %11$s_sbe_schema_version(), buffer_length);\n\n" +
 
             "    %11$s_set_blockLength(hdr, %10$s_sbe_block_length());\n" +
             "    %11$s_set_templateId(hdr, %10$s_sbe_template_id());\n" +
@@ -2266,8 +2277,8 @@ public class CGenerator implements CodeGenerator
 
             sb.append(String.format("\n" +
                 "SBE_ONE_DEF struct %1$s *%1$s_set_%2$s(\n" +
-                "   struct %1$s *const codec,\n" +
-                "   const enum %3$s value)\n" +
+                "    struct %1$s *const codec,\n" +
+                "    const enum %3$s value)\n" +
                 "{\n" +
                 "    %4$s val = %6$s(value);\n" +
                 "    memcpy(codec->buffer + codec->offset + %5$d, &val, sizeof(%4$s));\n\n" +
@@ -2382,11 +2393,10 @@ public class CGenerator implements CodeGenerator
         return generateLiteral(primitiveType, encoding.applicableNullValue().toString());
     }
 
-    private CharSequence generateLiteral(final PrimitiveType type, final String value)
+    private static CharSequence generateLiteral(final PrimitiveType type, final String value)
     {
         String literal = "";
 
-        final String castType = cTypeName(type);
         switch (type)
         {
             case CHAR:
@@ -2394,28 +2404,47 @@ public class CGenerator implements CodeGenerator
             case UINT16:
             case INT8:
             case INT16:
-                literal = "(" + castType + ")" + value;
+                literal = "(" + cTypeName(type) + ")" + value;
                 break;
 
             case UINT32:
-            case INT32:
-                literal = value;
+                literal = "UINT32_C(0x" + Integer.toHexString((int)Long.parseLong(value)) + ")";
                 break;
+
+            case INT32:
+            {
+                final long intValue = Long.parseLong(value);
+                if (intValue == Integer.MIN_VALUE)
+                {
+                    literal = "INT32_MIN";
+                }
+                else
+                {
+                    literal = "INT32_C(" + value + ")";
+                }
+                break;
+            }
 
             case FLOAT:
                 literal = value.endsWith("NaN") ? "SBE_FLOAT_NAN" : value + "f";
                 break;
 
             case INT64:
-                literal = value + "L";
-                if (value.equals("-9223372036854775808"))
+            {
+                final long longValue = Long.parseLong(value);
+                if (longValue == Long.MIN_VALUE)
                 {
                     literal = "INT64_MIN";
                 }
+                else
+                {
+                    literal = "INT64_C(" + value + ")";
+                }
                 break;
+            }
 
             case UINT64:
-                literal = "0x" + Long.toHexString(Long.parseLong(value)) + "L";
+                literal = "UINT64_C(0x" + Long.toHexString(Long.parseLong(value)) + ")";
                 break;
 
             case DOUBLE:

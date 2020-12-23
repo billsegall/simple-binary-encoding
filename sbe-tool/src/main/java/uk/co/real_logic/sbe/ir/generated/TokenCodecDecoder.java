@@ -1,8 +1,9 @@
-/* Generated SBE (Simple Binary Encoding) message codec */
+/* Generated SBE (Simple Binary Encoding) message codec. */
 package uk.co.real_logic.sbe.ir.generated;
 
 import org.agrona.MutableDirectBuffer;
 import org.agrona.DirectBuffer;
+
 
 /**
  * Codec for an IR Token
@@ -18,11 +19,11 @@ public class TokenCodecDecoder
 
     private final TokenCodecDecoder parentMessage = this;
     private DirectBuffer buffer;
-    protected int initialOffset;
-    protected int offset;
-    protected int limit;
-    protected int actingBlockLength;
-    protected int actingVersion;
+    private int initialOffset;
+    private int offset;
+    private int limit;
+    int actingBlockLength;
+    int actingVersion;
 
     public int sbeBlockLength()
     {
@@ -383,6 +384,11 @@ public class TokenCodecDecoder
         return "";
     }
 
+    public short signalRaw()
+    {
+        return ((short)(buffer.getByte(offset + 20) & 0xFF));
+    }
+
     public SignalCodec signal()
     {
         return SignalCodec.get(((short)(buffer.getByte(offset + 20) & 0xFF)));
@@ -417,6 +423,11 @@ public class TokenCodecDecoder
         }
 
         return "";
+    }
+
+    public short primitiveTypeRaw()
+    {
+        return ((short)(buffer.getByte(offset + 21) & 0xFF));
     }
 
     public PrimitiveTypeCodec primitiveType()
@@ -455,6 +466,11 @@ public class TokenCodecDecoder
         return "";
     }
 
+    public short byteOrderRaw()
+    {
+        return ((short)(buffer.getByte(offset + 22) & 0xFF));
+    }
+
     public ByteOrderCodec byteOrder()
     {
         return ByteOrderCodec.get(((short)(buffer.getByte(offset + 22) & 0xFF)));
@@ -489,6 +505,11 @@ public class TokenCodecDecoder
         }
 
         return "";
+    }
+
+    public short presenceRaw()
+    {
+        return ((short)(buffer.getByte(offset + 23) & 0xFF));
     }
 
     public PresenceCodec presence()

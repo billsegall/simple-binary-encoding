@@ -25,13 +25,16 @@ import java.util.Map;
 import static uk.co.real_logic.sbe.xml.XmlSchemaParser.*;
 
 /**
- * Message schema composite for schema attributes, messageHeader, and reference for multiple {@link Message} objects.
+ * Message schema aggregate for schema attributes, messageHeader, and reference for multiple {@link Message} objects.
  */
 public class MessageSchema
 {
+    /**
+     * Default message header type name for the SBE spec.
+     */
     public static final String HEADER_TYPE_DEFAULT = "messageHeader";
 
-    private final String packageName;                 // package (optional?)
+    private final String packageName;                 // package (required)
     private final String description;                 // description (optional)
     private final int id;                             // identifier for the schema (required)
     private final int version;                        // version (optional - default is 0)

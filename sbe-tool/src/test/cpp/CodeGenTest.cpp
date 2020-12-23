@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <iostream>
+#include <cstring>
 
 #include "gtest/gtest.h"
 #include "code_generation_test/MessageHeader.h"
@@ -43,21 +44,21 @@ static const char *MODEL = "Civic VTi";
 static const char *ACTIVATION_CODE = "deadbeef";
 static const char *COLOR = "racing green";
 
-static const std::uint64_t VEHICLE_CODE_LENGTH = sizeof(VEHICLE_CODE);
-static const std::uint64_t MANUFACTURER_CODE_LENGTH = sizeof(MANUFACTURER_CODE);
-static const std::uint64_t FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH = 11;
-static const std::uint64_t FUEL_FIGURES_2_USAGE_DESCRIPTION_LENGTH = 14;
-static const std::uint64_t FUEL_FIGURES_3_USAGE_DESCRIPTION_LENGTH = 13;
-static const std::uint64_t MANUFACTURER_LENGTH = 5;
-static const std::uint64_t MODEL_LENGTH = 9;
-static const std::uint64_t ACTIVATION_CODE_LENGTH = 8;
-static const std::uint64_t COLOR_LENGTH = 12;
+static const std::size_t VEHICLE_CODE_LENGTH = sizeof(VEHICLE_CODE);
+static const std::size_t MANUFACTURER_CODE_LENGTH = sizeof(MANUFACTURER_CODE);
+static const std::size_t FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH = strlen(FUEL_FIGURES_1_USAGE_DESCRIPTION);
+static const std::size_t FUEL_FIGURES_2_USAGE_DESCRIPTION_LENGTH = strlen(FUEL_FIGURES_2_USAGE_DESCRIPTION);
+static const std::size_t FUEL_FIGURES_3_USAGE_DESCRIPTION_LENGTH = strlen(FUEL_FIGURES_3_USAGE_DESCRIPTION);
+static const std::size_t MANUFACTURER_LENGTH = strlen(MANUFACTURER);
+static const std::size_t MODEL_LENGTH = strlen(MODEL);
+static const std::size_t ACTIVATION_CODE_LENGTH = strlen(ACTIVATION_CODE);
+static const std::size_t COLOR_LENGTH = strlen(COLOR);
 static const std::uint8_t PERFORMANCE_FIGURES_COUNT = 2;
 static const std::uint8_t FUEL_FIGURES_COUNT = 3;
 static const std::uint8_t ACCELERATION_COUNT = 3;
 
 static const std::uint64_t expectedHeaderSize = 8;
-static const std::uint64_t expectedCarSize = 207;
+static const std::uint64_t expectedCarEncodedLength = 207;
 
 static const std::uint16_t fuel1Speed = 30;
 static const float fuel1Mpg = 35.9f;
@@ -442,6 +443,7 @@ TEST_F(CodeGenTest, shouldBeAbleToEncodeCarCorrectly)
         ACTIVATION_CODE_LENGTH,
         COLOR_LENGTH
     );
+
     EXPECT_EQ(sz, predictedCarSz);
     EXPECT_EQ(Car::isConstLength(), false);
     EXPECT_EQ(Car::PerformanceFigures::Acceleration::isConstLength(), true);
@@ -453,14 +455,14 @@ TEST_F(CodeGenTest, shouldBeAbleToEncodeHeaderPlusCarCorrectly)
     const char *bp = buffer;
 
     std::uint64_t hdrSz = encodeHdr(buffer, 0, sizeof(buffer));
-    std::uint64_t carSz = encodeCar(buffer, m_hdr.encodedLength(), sizeof(buffer) - m_hdr.encodedLength());
+    std::uint64_t carEncodedLength = encodeCar(buffer, m_hdr.encodedLength(), sizeof(buffer) - m_hdr.encodedLength());
 
     EXPECT_EQ(hdrSz, expectedHeaderSize);
-    EXPECT_EQ(carSz, expectedCarSize);
+    EXPECT_EQ(carEncodedLength, expectedCarEncodedLength);
 
     EXPECT_EQ(*((std::uint16_t *)bp), Car::sbeBlockLength());
     const size_t activationCodePosition =
-        (hdrSz + carSz) - (ACTIVATION_CODE_LENGTH + sizeof(std::uint32_t) + COLOR_LENGTH);
+        (hdrSz + carEncodedLength) - (ACTIVATION_CODE_LENGTH + sizeof(std::uint32_t) + COLOR_LENGTH);
     const size_t activationCodeLengthPosition = activationCodePosition - sizeof(std::uint16_t);
     EXPECT_EQ(*(std::uint16_t *)(bp + activationCodeLengthPosition), ACTIVATION_CODE_LENGTH);
     EXPECT_EQ(std::string(bp + activationCodePosition, ACTIVATION_CODE_LENGTH), ACTIVATION_CODE);
@@ -471,10 +473,10 @@ TEST_F(CodeGenTest, shouldBeAbleToEncodeAndDecodeHeaderPlusCarCorrectly)
     char buffer[BUFFER_LEN];
 
     std::uint64_t hdrSz = encodeHdr(buffer, 0, sizeof(buffer));
-    std::uint64_t carSz = encodeCar(buffer, m_hdr.encodedLength(), sizeof(buffer) - m_hdr.encodedLength());
+    std::uint64_t carEncodedLength = encodeCar(buffer, m_hdr.encodedLength(), sizeof(buffer) - m_hdr.encodedLength());
 
     EXPECT_EQ(hdrSz, expectedHeaderSize);
-    EXPECT_EQ(carSz, expectedCarSize);
+    EXPECT_EQ(carEncodedLength, expectedCarEncodedLength);
 
     m_hdrDecoder.wrap(buffer, 0, 0, hdrSz);
 
@@ -484,9 +486,9 @@ TEST_F(CodeGenTest, shouldBeAbleToEncodeAndDecodeHeaderPlusCarCorrectly)
     EXPECT_EQ(m_hdrDecoder.version(), Car::sbeSchemaVersion());
     EXPECT_EQ(m_hdrDecoder.encodedLength(), expectedHeaderSize);
 
-    m_carDecoder.wrapForDecode(buffer, m_hdrDecoder.encodedLength(), Car::sbeBlockLength(), Car::sbeSchemaVersion(), hdrSz + carSz);
+    m_carDecoder.wrapForDecode(buffer, m_hdrDecoder.encodedLength(), Car::sbeBlockLength(), Car::sbeSchemaVersion(), hdrSz + carEncodedLength);
 
-    EXPECT_EQ(m_carDecoder.decodeLength(), expectedCarSize);
+    EXPECT_EQ(m_carDecoder.decodeLength(), expectedCarEncodedLength);
 
     EXPECT_EQ(m_carDecoder.serialNumber(), SERIAL_NUMBER);
     EXPECT_EQ(m_carDecoder.modelYear(), MODEL_YEAR);
@@ -598,8 +600,8 @@ TEST_F(CodeGenTest, shouldBeAbleToEncodeAndDecodeHeaderPlusCarCorrectly)
     EXPECT_EQ(m_carDecoder.colorLength(), COLOR_LENGTH);
     EXPECT_EQ(std::string(m_carDecoder.color(), COLOR_LENGTH), COLOR);
 
-    EXPECT_EQ(m_carDecoder.encodedLength(), expectedCarSize);
-    EXPECT_EQ(m_carDecoder.decodeLength(), expectedCarSize);
+    EXPECT_EQ(m_carDecoder.encodedLength(), expectedCarEncodedLength);
+    EXPECT_EQ(m_carDecoder.decodeLength(), expectedCarEncodedLength);
 }
 
 struct CallbacksForEach
@@ -637,10 +639,10 @@ TEST_F(CodeGenTest, shouldBeAbleUseOnStackCodecsAndGroupForEach)
     Car car(buffer + hdr.encodedLength(), sizeof(buffer) - hdr.encodedLength());
 
     std::uint64_t hdrSz = encodeHdr(hdr);
-    std::uint64_t carSz = encodeCar(car);
+    std::uint64_t carEncodedLength = encodeCar(car);
 
     EXPECT_EQ(hdrSz, expectedHeaderSize);
-    EXPECT_EQ(carSz, expectedCarSize);
+    EXPECT_EQ(carEncodedLength, expectedCarEncodedLength);
 
     const MessageHeader hdrDecoder(buffer, hdrSz, 0);
 
@@ -650,20 +652,21 @@ TEST_F(CodeGenTest, shouldBeAbleUseOnStackCodecsAndGroupForEach)
     EXPECT_EQ(hdrDecoder.version(), Car::sbeSchemaVersion());
     EXPECT_EQ(hdrDecoder.encodedLength(), expectedHeaderSize);
 
-    Car carDecoder(buffer + hdrDecoder.encodedLength(), carSz, hdrDecoder.blockLength(), hdrDecoder.version());
+    Car carDecoder(buffer + hdrDecoder.encodedLength(), carEncodedLength, hdrDecoder.blockLength(), hdrDecoder.version());
     CallbacksForEach cbs;
 
     Car::FuelFigures &fuelFigures = carDecoder.fuelFigures();
     EXPECT_EQ(fuelFigures.count(), FUEL_FIGURES_COUNT);
 
 #if __cplusplus >= 201103L
-    fuelFigures.forEach([&](Car::FuelFigures &figures)
-    {
-        cbs.countOfFuelFigures++;
+    fuelFigures.forEach(
+        [&](Car::FuelFigures &figures)
+        {
+            cbs.countOfFuelFigures++;
 
-        char tmp[256];
-        figures.getUsageDescription(tmp, sizeof(tmp));
-    });
+            char tmp[256];
+            figures.getUsageDescription(tmp, sizeof(tmp));
+        });
 #else
     fuelFigures.forEach(cbs);
 #endif
@@ -677,10 +680,11 @@ TEST_F(CodeGenTest, shouldBeAbleUseOnStackCodecsAndGroupForEach)
         Car::PerformanceFigures::Acceleration acceleration = figures.acceleration();
 
         cbs.countOfPerformanceFigures++;
-        acceleration.forEach([&](Car::PerformanceFigures::Acceleration&)
-        {
-            cbs.countOfAccelerations++;
-        });
+        acceleration.forEach(
+            [&](Car::PerformanceFigures::Acceleration&)
+            {
+                cbs.countOfAccelerations++;
+            });
     });
 #else
     performanceFigures.forEach(cbs);
@@ -704,7 +708,7 @@ TEST_F(CodeGenTest, shouldBeAbleUseOnStackCodecsAndGroupForEach)
     EXPECT_EQ(carDecoder.getColor(tmp, sizeof(tmp)), COLOR_LENGTH);
     EXPECT_EQ(std::string(tmp, COLOR_LENGTH), COLOR);
 
-    EXPECT_EQ(carDecoder.encodedLength(), expectedCarSize);
+    EXPECT_EQ(carDecoder.encodedLength(), expectedCarEncodedLength);
 }
 
 static const std::size_t offsetVehicleCode = 32;
@@ -759,29 +763,36 @@ TEST_F(CodeGenTest, shouldBeAbleToUseStdStringMethodsForEncode)
         .putActivationCode(activationCode)
         .putColor(color);
 
-    EXPECT_EQ(car.encodedLength(), expectedCarSize);
+    EXPECT_EQ(car.encodedLength(), expectedCarEncodedLength);
 
     EXPECT_EQ(std::string(buffer + baseOffset + offsetVehicleCode, VEHICLE_CODE_LENGTH), vehicleCode);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetUsageDesc1Length), FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetUsageDesc1Length),
+        static_cast<std::uint16_t>(FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetUsageDesc1Data, FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH), usageDesc1);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetUsageDesc2Length), FUEL_FIGURES_2_USAGE_DESCRIPTION_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetUsageDesc2Length),
+        static_cast<std::uint16_t>(FUEL_FIGURES_2_USAGE_DESCRIPTION_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetUsageDesc2Data, FUEL_FIGURES_2_USAGE_DESCRIPTION_LENGTH), usageDesc2);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetUsageDesc3Length), FUEL_FIGURES_3_USAGE_DESCRIPTION_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetUsageDesc3Length),
+        static_cast<std::uint16_t>(FUEL_FIGURES_3_USAGE_DESCRIPTION_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetUsageDesc3Data, FUEL_FIGURES_3_USAGE_DESCRIPTION_LENGTH), usageDesc3);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetManufacturerLength), MANUFACTURER_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetManufacturerLength),
+        static_cast<std::uint16_t>(MANUFACTURER_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetManufacturerData, MANUFACTURER_LENGTH), manufacturer);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetModelLength), MODEL_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetModelLength),
+        static_cast<std::uint16_t>(MODEL_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetModelData, MODEL_LENGTH), model);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetActivationCodeLength), ACTIVATION_CODE_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetActivationCodeLength),
+        static_cast<std::uint16_t>(ACTIVATION_CODE_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetActivationCodeData, ACTIVATION_CODE_LENGTH), activationCode);
 
-    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetColorLength), COLOR_LENGTH);
+    EXPECT_EQ(*(std::uint16_t *)(buffer + baseOffset + offsetColorLength),
+        static_cast<std::uint16_t>(COLOR_LENGTH));
     EXPECT_EQ(std::string(buffer + baseOffset + offsetColorData, COLOR_LENGTH), color);
 }
 
@@ -790,11 +801,11 @@ TEST_F(CodeGenTest, shouldBeAbleToUseStdStringMethodsForDecode)
     char buffer[2048];
     Car carEncoder(buffer, sizeof(buffer));
 
-    std::uint64_t carSz = encodeCar(carEncoder);
+    std::uint64_t carEncodedLength = encodeCar(carEncoder);
 
-    EXPECT_EQ(carSz, expectedCarSize);
+    EXPECT_EQ(carEncodedLength, expectedCarEncodedLength);
 
-    Car carDecoder(buffer, carSz, Car::sbeBlockLength(), Car::sbeSchemaVersion());
+    Car carDecoder(buffer, carEncodedLength, Car::sbeBlockLength(), Car::sbeSchemaVersion());
 
     std::string vehicleCode(VEHICLE_CODE, Car::vehicleCodeLength());
     std::string usageDesc1(FUEL_FIGURES_1_USAGE_DESCRIPTION, FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH);
@@ -834,7 +845,7 @@ TEST_F(CodeGenTest, shouldBeAbleToUseStdStringMethodsForDecode)
     EXPECT_EQ(carDecoder.getActivationCodeAsString(), activationCode);
     EXPECT_EQ(carDecoder.getColorAsString(), color);
 
-    EXPECT_EQ(carDecoder.encodedLength(), expectedCarSize);
+    EXPECT_EQ(carDecoder.encodedLength(), expectedCarEncodedLength);
 }
 
 TEST_F(CodeGenTest, shouldPrintFullDecodedFlyweightRegardlessOfReadPosition)
@@ -858,11 +869,11 @@ TEST_F(CodeGenTest, shouldPrintFullDecodedFlyweightRegardlessOfReadPosition)
     memset(buffer, 0, 2048);
     Car carEncoder(buffer, sizeof(buffer));
 
-    std::uint64_t carSz = encodeCar(carEncoder);
+    std::uint64_t carEncodedLength = encodeCar(carEncoder);
 
-    EXPECT_EQ(carSz, expectedCarSize);
+    EXPECT_EQ(carEncodedLength, expectedCarEncodedLength);
 
-    Car carDecoder(buffer, carSz, Car::sbeBlockLength(), Car::sbeSchemaVersion());
+    Car carDecoder(buffer, carEncodedLength, Car::sbeBlockLength(), Car::sbeSchemaVersion());
 
     std::string vehicleCode(VEHICLE_CODE, Car::vehicleCodeLength());
     std::string usageDesc1(FUEL_FIGURES_1_USAGE_DESCRIPTION, FUEL_FIGURES_1_USAGE_DESCRIPTION_LENGTH);
@@ -913,5 +924,5 @@ TEST_F(CodeGenTest, shouldPrintFullDecodedFlyweightRegardlessOfReadPosition)
 
     expectDisplayString(expectedDisplayString, carDecoder);
 
-    EXPECT_EQ(carDecoder.encodedLength(), expectedCarSize);
+    EXPECT_EQ(carDecoder.encodedLength(), expectedCarEncodedLength);
 }
